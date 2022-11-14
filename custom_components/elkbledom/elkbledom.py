@@ -180,7 +180,7 @@ class BLEDOMInstance:
 
     @retry_bluetooth_connection_error
     async def turn_on(self):
-        await self._write([0x7e, 0x00, 0x04, 0xf0, 0x00, 0x01, 0xff, 0x00, 0xef])
+        await self._write([0x7e, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0xef])
         self._is_on = True
                 
     @retry_bluetooth_connection_error
@@ -283,15 +283,12 @@ class BLEDOMInstance:
                 ble_device_callback=lambda: self._device,
             )
             LOGGER.debug("%s: Connected; RSSI: %s", self.name, self.rssi)
-            #NOT NEEDED , ONLY ONE READ/WRITE UUID
-            #resolved = self._resolve_characteristics(client.services)
-            #if not resolved:
-            #    # Try to handle services failing to load
-            #    resolved = self._resolve_characteristics(await client.get_services())
-            #self._cached_services = client.services if resolved else None
-            self._read_uuid = READ_CHARACTERISTIC_UUIDS[0]
-            self._write_uuid = WRITE_CHARACTERISTIC_UUIDS[0]
-            self._cached_services = client.services
+            resolved = self._resolve_characteristics(client.services)
+            if not resolved:
+                # Try to handle services failing to load
+                resolved = self._resolve_characteristics(await client.get_services())
+            self._cached_services = client.services if resolved else None
+
             self._client = client
             self._reset_disconnect_timer()
 

@@ -41,9 +41,9 @@ class BLEDOMLight(LightEntity):
     def __init__(self, bledomInstance: BLEDOMInstance, name: str, entry_id: str) -> None:
         self._instance = bledomInstance
         self._entry_id = entry_id
-        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP, ColorMode.WHITE}
+        self._attr_supported_color_modes = {ColorMode.RGB}
         self._attr_supported_features = LightEntityFeature.EFFECT
-        self._color_mode = ColorMode.WHITE
+        self._color_mode = ColorMode.RGB
         self._attr_name = name
         self._effect = None
         self._attr_unique_id = self._instance.mac

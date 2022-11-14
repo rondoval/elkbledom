@@ -27,7 +27,7 @@ class DeviceData(BluetoothData):
         self._discovery = discovery_info
 
     def supported(self):
-        return self._discovery.name.lower().startswith("elk-bledom")
+        return self._discovery.name.lower().startswith("elk-bledom") or self._discovery.name.lower().startsWith("ledble")
 
     def address(self):
         return self._discovery.address
