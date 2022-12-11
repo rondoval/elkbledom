@@ -27,7 +27,7 @@ class DeviceData(BluetoothData):
         self._discovery = discovery_info
 
     def supported(self):
-        return self._discovery.name.lower().startswith("elk-bledom") or self._discovery.name.lower().startsWith("ledble")
+        return self._discovery.name.lower().startswith("elk-bledom") or self._discovery.name.lower().startswith("ledble")
 
     def address(self):
         return self._discovery.address
@@ -126,9 +126,8 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_MAC): vol.In(
                         {
-                            ##TODO: Show all supported devices
-                            self._discovered_devices[0].address(): self._discovered_devices[0].name(),
-                            MANUAL_MAC: "Manually add a MAC address",
+                            dev.address(): dev.name() for dev in self._discovered_devices
+                            # MANUAL_MAC: "Manually add a MAC address",
                         }
                     ),
                     vol.Required("name"): str
