@@ -165,7 +165,7 @@ class BLEDOMInstance:
 
     @retry_bluetooth_connection_error
     async def set_white(self, intensity: int):
-        await self._write([0x7e, 0x00, 0x01, intensity, 0x00, 0x00, 0x00, 0x00, 0xef])
+        await self._write([0x7e, 0x00, 0x01, intensity*100/255, 0x00, 0x00, 0x00, 0x00, 0xef])
         self._brightness = intensity
 
     @retry_bluetooth_connection_error
