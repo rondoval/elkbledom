@@ -168,7 +168,7 @@ class BLEDOMInstance:
 
     @retry_bluetooth_connection_error
     async def set_white(self, intensity: int):
-        await self._write([0x7e, 0x00, 0x01, intensity*100/255, 0x00, 0x00, 0x00, 0x00, 0xef])
+        await self._write([0x7e, 0x00, 0x01, int(intensity*100/255), 0x00, 0x00, 0x00, 0x00, 0xef])
         self._brightness = intensity
 
     @retry_bluetooth_connection_error
@@ -183,7 +183,8 @@ class BLEDOMInstance:
 
     @retry_bluetooth_connection_error
     async def turn_on(self):
-        if self._write_uuid == WRITE_CHARACTERISTIC_UUIDS[1]:
+        await self._ensure_connected()
+        if self._write_uuid.uuid == WRITE_CHARACTERISTIC_UUIDS[1]:
             await self._write([0x7e, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0xef])
         else:
             await self._write([0x7e, 0x00, 0x04, 0xf0, 0x00, 0x01, 0xff, 0x00, 0xef])
