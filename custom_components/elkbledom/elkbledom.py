@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 from homeassistant.components import bluetooth
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.service import BleakGATTCharacteristic, BleakGATTServiceCollection
@@ -108,6 +109,8 @@ class BLEDOMInstance:
         self._hass = hass
         self._device: BLEDevice | None = None
         self._device = bluetooth.async_ble_device_from_address(self._hass, address, connectable=True)
+        if not self._device:
+            raise ConfigEntryNotReady(f"Couldn't find a nearby device with address: {address}")
         self._connect_lock: asyncio.Lock = asyncio.Lock()
         self._client: BleakClientWithServiceCache | None = None
         self._disconnect_timer: asyncio.TimerHandle | None = None
