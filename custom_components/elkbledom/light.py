@@ -11,7 +11,6 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.components.light import (
     PLATFORM_SCHEMA,
     ATTR_BRIGHTNESS,
-    ATTR_COLOR_TEMP,
     ATTR_EFFECT,
     ATTR_RGB_COLOR,
     ATTR_WHITE,
@@ -41,7 +40,7 @@ class BLEDOMLight(LightEntity):
     def __init__(self, bledomInstance: BLEDOMInstance, name: str, entry_id: str) -> None:
         self._instance = bledomInstance
         self._entry_id = entry_id
-        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP, ColorMode.WHITE}
+        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.WHITE}
         self._attr_supported_features = LightEntityFeature.EFFECT
         self._color_mode = ColorMode.WHITE
         self._attr_name = name
@@ -70,10 +69,6 @@ class BLEDOMLight(LightEntity):
     @property
     def min_mireds(self):
         return 1
-
-    @property
-    def color_temp(self):
-        return self._instance.color_temp
 
     @property
     def effect_list(self):
@@ -132,12 +127,6 @@ class BLEDOMLight(LightEntity):
 
         if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness and self.rgb_color != None:
             await self._instance.set_white(kwargs[ATTR_BRIGHTNESS])
-
-        if ATTR_COLOR_TEMP in kwargs:
-            self._color_mode = ColorMode.COLOR_TEMP
-            if kwargs[ATTR_COLOR_TEMP] != self.color_temp:
-                self._effect = None
-                await self._instance.set_color_temp(kwargs[ATTR_COLOR_TEMP])
 
         if ATTR_WHITE in kwargs:
             self._color_mode = ColorMode.WHITE
