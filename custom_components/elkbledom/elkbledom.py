@@ -206,8 +206,6 @@ class BLEDOMInstance:
 
     @retry_bluetooth_connection_error
     async def turn_on(self):
-        #NOT NEEDED, self._write() call to self._ensure_connected()
-        #await self._ensure_connected()
         await self._write(self._turn_on_cmd)
         self._is_on = True
                 
