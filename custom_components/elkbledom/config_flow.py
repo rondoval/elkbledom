@@ -3,18 +3,20 @@ from .elkbledom import BLEDOMInstance
 from typing import Any
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_MAC
+from homeassistant.const import CONF_MAC, CONF_MODEL
 import voluptuous as vol
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.core import callback
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
 from bluetooth_sensor_state_data import BluetoothData
 from home_assistant_bluetooth import BluetoothServiceInfo
+from homeassistant.helpers.selector import selector
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_RESET
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -22,12 +24,13 @@ DATA_SCHEMA = vol.Schema({("host"): str})
 
 MANUAL_MAC = "manual"
 
+
 class DeviceData(BluetoothData):
     def __init__(self, discovery_info) -> None:
         self._discovery = discovery_info
 
     def supported(self):
-        return self._discovery.name.lower().startswith("elk-bledom") or self._discovery.name.lower().startswith("ledble")
+        return self._discovery.name.lower().startswith("elk-ble") or self._discovery.name.lower().startswith("ledble") or self._discovery.name.lower().startswith("melk")
 
     def address(self):
         return self._discovery.address
@@ -62,32 +65,22 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> FlowResult:
         """Handle the bluetooth discovery step."""
-        LOGGER.debug("Discovered bluetooth devices, step bluetooth, : %s", discovery_info)
+        LOGGER.debug("Discovered bluetooth devices, step bluetooth, : %s , %s", discovery_info.address, discovery_info.name)
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         device = DeviceData(discovery_info)
-        if not device.supported():
+        if device.supported():
+            self._discovered_devices.append(device)
+            return await self.async_step_bluetooth_confirm()
+        else:
             return self.async_abort(reason="not_supported")
-        self._discovery_info = discovery_info
-        self._discovered_device = device
-        return await self.async_step_bluetooth_confirm()
 
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Confirm discovery."""
         LOGGER.debug("Discovered bluetooth devices, step bluetooth confirm, : %s", user_input)
-        assert self._discovered_device is not None
-        device = self._discovered_device
-        assert self._discovery_info is not None
-        discovery_info = self._discovery_info
-        title = device.title or device.get_device_name() or discovery_info.name
-        if user_input is not None:
-            return self.async_create_entry(title=self.name, data={CONF_MAC: self.mac, "name": self.name})
-
         self._set_confirm_only()
-        placeholders = {"name": title}
-        self.context["title_placeholders"] = placeholders
         return await self.async_step_user()
     
     async def async_step_user(
@@ -176,7 +169,7 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def toggle_light(self):
         if not self._instance:
-            self._instance = BLEDOMInstance(self.mac, self.hass)
+            self._instance = BLEDOMInstance(self.mac, False, self.hass)
         try:
             await self._instance.update()
             if self._instance.is_on:
@@ -193,3 +186,34 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return error
         finally:
             await self._instance.stop()
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(entry: config_entries.ConfigEntry):
+        return OptionsFlowHandler(entry)
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+
+    def __init__(self, config_entry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, _user_input=None):
+        """Manage the options."""
+        return await self.async_step_user()
+    
+    async def async_step_user(self, user_input=None):
+        """Handle a flow initialized by the user."""
+        errors = {}
+        options = self.config_entry.options or {CONF_RESET: False,}
+        if user_input is not None:
+            return self.async_create_entry(title="", data={CONF_RESET: user_input[CONF_RESET]})
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_RESET, default=options.get(CONF_RESET)): bool,
+                }
+            ), errors=errors
+        )
