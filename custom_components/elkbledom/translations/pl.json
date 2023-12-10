@@ -35,7 +35,8 @@
         "step": {
           "user": {
             "data": {
-              "reset": "Zresetuj kolor gdy LED włączy się"
+              "reset": "Zresetuj kolor gdy LED włączy się",
+              "delay": "Czas oczekiwania na rozłączenie (0, aby nigdy nie rozłączać)"
             }
           }
         }

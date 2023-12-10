@@ -10,8 +10,8 @@
             },
             "validate": {
                 "data": {
-                    "retry": "¿Intentar de nuevo la conexión?",
-                    "flicker": "¿La luz vibra?"
+                    "retry": "?Intentar de nuevo la conexión?",
+                    "flicker": "?La luz vibra?"
                 },
                 "title": "Validacion de la conexion"
             },
@@ -35,7 +35,8 @@
         "step": {
           "user": {
             "data": {
-              "reset": "Resetear color cuando se encienda el led"
+              "reset": "Resetear color cuando se encienda el led",
+              "delay": "Tiempo de espera para desconexión (0 para no desconectar nunca)"
             }
           }
         }

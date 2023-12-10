@@ -1,9 +1,10 @@
 import asyncio
 from .elkbledom import BLEDOMInstance
+from .elkbledom import DeviceData
 from typing import Any
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_MAC, CONF_MODEL
+from homeassistant.const import CONF_MAC
 import voluptuous as vol
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.data_entry_flow import FlowResult
@@ -12,11 +13,8 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from bluetooth_sensor_state_data import BluetoothData
-from home_assistant_bluetooth import BluetoothServiceInfo
-from homeassistant.helpers.selector import selector
 
-from .const import DOMAIN, CONF_RESET
+from .const import DOMAIN, CONF_RESET, CONF_DELAY
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -24,30 +22,6 @@ DATA_SCHEMA = vol.Schema({("host"): str})
 
 MANUAL_MAC = "manual"
 
-
-class DeviceData(BluetoothData):
-    def __init__(self, discovery_info) -> None:
-        self._discovery = discovery_info
-
-    def supported(self):
-        return self._discovery.name.lower().startswith("elk-ble") or self._discovery.name.lower().startswith("ledble") or self._discovery.name.lower().startswith("melk")
-
-    def address(self):
-        return self._discovery.address
-
-    def get_device_name(self):
-        return self._discovery.name
-
-    def name(self):
-        return self._discovery.name
-
-    def rssi(self):
-        return self._discovery.rssi
-
-    def _start_update(self, service_info: BluetoothServiceInfo) -> None:
-        """Update from BLE advertisement data."""
-        LOGGER.debug("Parsing Govee BLE advertisement data: %s", service_info)
-        
 class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
@@ -58,7 +32,6 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self._instance = None
         self.name = None
         self._discovery_info: BluetoothServiceInfoBleak | None = None
-        self._discovered_device: DeviceData | None = None
         self._discovered_devices = []
 
     async def async_step_bluetooth(
@@ -68,8 +41,8 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         LOGGER.debug("Discovered bluetooth devices, step bluetooth, : %s , %s", discovery_info.address, discovery_info.name)
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
-        device = DeviceData(discovery_info)
-        if device.supported():
+        device = DeviceData(self.hass, discovery_info)
+        if device.is_supported:
             self._discovered_devices.append(device)
             return await self.async_step_bluetooth_confirm()
         else:
@@ -102,19 +75,20 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if self.mac in current_addresses:
                 LOGGER.debug("Device %s in current_addresses", (self.mac))
                 continue
-            if (device for device in self._discovered_devices if device.address == self.mac) == ([]):
-                LOGGER.debug("Device %s in discovered_devices", (device))
+            if (device for device in self._discovered_devices if device.address == self.mac) != ([]):
+                #LOGGER.debug("Device with address %s in discovered_devices", self.mac)
                 continue
-            device = DeviceData(discovery_info)
-            if device.supported():
+            device = DeviceData(self.hass, discovery_info)
+            if device.is_supported:
                 self._discovered_devices.append(device)
         
         if not self._discovered_devices:
             return await self.async_step_manual()
 
-        LOGGER.debug("Discovered supported devices: %s - %s", self._discovered_devices[0].name(), self._discovered_devices[0].address())
+        for device in self._discovered_devices:
+            LOGGER.debug("Discovered supported devices: %s - %s - %s", device.name, device.address, device.rssi)
 
-        mac_dict = { dev.address(): dev.name() for dev in self._discovered_devices }
+        mac_dict = { dev.address: dev.name for dev in self._discovered_devices }
         mac_dict[MANUAL_MAC] = "Manually add a MAC address"
         return self.async_show_form(
             step_id="user", data_schema=vol.Schema(
@@ -168,9 +142,11 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             ), errors={})
 
     async def toggle_light(self):
-        if not self._instance:
-            self._instance = BLEDOMInstance(self.mac, False, self.hass)
         try:
+            if not self._instance:
+                self._instance = BLEDOMInstance(self.mac, False, 120, self.hass)
+            #init commands
+            await self._instance._init_command()
             await self._instance.update()
             if self._instance.is_on:
                 await self._instance.turn_off()
@@ -185,7 +161,8 @@ class BLEDOMFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         except (Exception) as error:
             return error
         finally:
-            await self._instance.stop()
+            if self._instance:
+                await self._instance.stop()
 
     @staticmethod
     @callback
@@ -205,15 +182,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""
         errors = {}
-        options = self.config_entry.options or {CONF_RESET: False,}
+        options = self.config_entry.options or {CONF_RESET: False,CONF_DELAY: 120,}
         if user_input is not None:
-            return self.async_create_entry(title="", data={CONF_RESET: user_input[CONF_RESET]})
+            return self.async_create_entry(title="", data={CONF_RESET: user_input[CONF_RESET], CONF_DELAY: user_input[CONF_DELAY]})
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
                     vol.Optional(CONF_RESET, default=options.get(CONF_RESET)): bool,
+                    vol.Optional(CONF_DELAY, default=options.get(CONF_DELAY)): int,
                 }
             ), errors=errors
         )
