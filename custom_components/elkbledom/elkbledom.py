@@ -88,7 +88,6 @@ MIN_COLOR_TEMPS_K = [2700,2700,2700,2700]
 MAX_COLOR_TEMPS_K = [6500,6500,6500,6500]
 
 DEFAULT_ATTEMPTS = 3
-#DISCONNECT_DELAY = 120
 BLEAK_BACKOFF_TIME = 0.25
 RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError,)
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
@@ -315,15 +314,6 @@ class BLEDOMInstance:
         return self._effect
     
     @retry_bluetooth_connection_error
-    async def set_color_temp(self, value: int):
-        if value > 100:
-            value = 100
-        warm = value
-        cold = 100 - value
-        await self._write([0x7e, 0x00, 0x05, 0x02, warm, cold, 0x00, 0x00, 0xef])
-        self._color_temp = warm
-
-    @retry_bluetooth_connection_error
     async def set_color_temp_kelvin(self, value: int, brightness: int):
         # White colours are represented by colour temperature percentage from 0x0 to 0x64 from warm to cool
         # Warm (0x0) is only the warm white LED, cool (0x64) is only the white LED and then a mixture between the two
@@ -343,12 +333,6 @@ class BLEDOMInstance:
         r, g, b = rgb
         await self._write([0x7e, 0x00, 0x05, 0x03, r, g, b, 0x00, 0xef])
         self._rgb_color = rgb
-
-    @DeprecationWarning
-    @retry_bluetooth_connection_error
-    async def set_white(self, intensity: int):
-        await self._write([0x7e, 0x00, 0x01, int(intensity*100/255), 0x00, 0x00, 0x00, 0x00, 0xef])
-        self._brightness = intensity
 
     @retry_bluetooth_connection_error
     async def set_brightness(self, intensity: int):

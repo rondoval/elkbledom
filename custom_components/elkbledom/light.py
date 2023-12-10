@@ -40,7 +40,7 @@ class BLEDOMLight(LightEntity):
     def __init__(self, bledomInstance: BLEDOMInstance, name: str, entry_id: str) -> None:
         self._instance = bledomInstance
         self._entry_id = entry_id
-        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.WHITE}
+        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP, ColorMode.WHITE}
         self._attr_supported_features = LightEntityFeature.EFFECT
         self._attr_color_mode = ColorMode.WHITE
         self._attr_name = name
@@ -106,33 +106,29 @@ class BLEDOMLight(LightEntity):
                 LOGGER.debug("Change color to white to reset led strip when other infrared control interact")
                 self._attr_color_mode = ColorMode.WHITE
                 self._attr_effect = None
-                await self._instance.set_color(self._transform_color_brightness((255, 255, 255), 250))
+                await self._instance.set_color((255, 255, 255))
                 await self._instance.set_brightness(255)
 
-        if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness and self.rgb_color != None:
+        if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness:
             await self._instance.set_brightness(kwargs[ATTR_BRIGHTNESS])
 
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._attr_color_mode = ColorMode.COLOR_TEMP
-            if kwargs[ATTR_COLOR_TEMP_KELVIN] != self.color_temp:
-                self._attr_effect = None
-                await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], None)
+            self._attr_effect = None
+            await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], None)
 
         if ATTR_WHITE in kwargs:
             self._attr_color_mode = ColorMode.WHITE
-            if self.rgb_color != (255, 255, 255):
-                await self._instance.set_color((255, 255, 255))
+            await self._instance.set_color((255, 255, 255))
             self._attr_effect = None
             await self._instance.set_brightness(kwargs[ATTR_WHITE])
 
         if ATTR_RGB_COLOR in kwargs:
             self._attr_color_mode = ColorMode.RGB
-            if kwargs[ATTR_RGB_COLOR] != self.rgb_color:
-                color = kwargs[ATTR_RGB_COLOR]
-                self._attr_effect = None
-                await self._instance.set_color(color)
+            self._attr_effect = None
+            await self._instance.set_color(kwargs[ATTR_RGB_COLOR])
 
-        if ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] != self.effect:
+        if ATTR_EFFECT in kwargs:
             self._attr_effect = kwargs[ATTR_EFFECT]
             await self._instance.set_effect(EFFECTS[kwargs[ATTR_EFFECT]].value)
 
